@@ -6,17 +6,29 @@ import scipy.stats as sct
 import time
 start_time = time.time()
 
-corr = [0.73, 0.86, 0.41]
+corr = [0.95, 0.28, 0.45]
 
 tranches = [0, 1, 2] #all tranches that should be prices
 tr = np.array([0.0, 0.03, 0.06, 0.12])#tranches
 
 
-delta = np.array([0.252777777778, 0.252777777778, 0.252777777778, 0.255555555556, 0.252777777778, 0.25, 0.255555555556, 0.255555555556, 0.252777777778, 0.25, 0.255555555556, 0.255555555556, 0.255555555556 ])
-discFac = np.array([0.998789615268, 0.999800018888, 1.02, 1.04,  1.08, 1.12, 1.13, 1.16, 1.20, 1.24, 1.25, 1.27, 1.303])
-pi = np.array([0.0, 0.0,0.00163277007592  ,0.00383756939696   ,0.00601361347919   ,0.00816106960817  , 0.010351451799  , 0.0125369967385  ,0.014694037557   ,0.0168227400791  ,0.0189939937924    ,0.0211604524977   ,0.0233509971123 ])
+delta = [0.252777777778, 0.252777777778      , 0.252777777778 , 0.255555555556   , 0.252777777778,      \
+         0.25,    0.255555555556      , 0.255555555556    , 0.252777777778      , 0.25, \
+              0.255555555556, 0.255555555556 , 0.252777777778 , 0.25, 0.255555555556, \
+              0.255555555556 , 0.252777777778, 0.252777777778   , 0.261111111111 , 0.252777777778, 0.252777777778]
 
-coupons = np.array([0.03, 0.02, 0.03])#coupons we want to price for
+discFac = [0.998600956242      ,0.999611180239      ,  1.00047630826       , 1.00112395119       ,\
+          1.00180019558       ,  1.00252355848       , 1.00320411939       , 1.0036842191        ,\
+           1.00377352897       , 1.00368518481       , 1.00372980688       , 1.0038363132        ,\
+          1.00395370531       ,  1.0040649568        , 1.00392689128       , 1.00358551835       , \
+          1.00315265354    , 1.00262525655    , 1.0018353653        ,    1.00087710692   ,0.999799458336]
+
+
+pi = [0.0, 0.0, 0.0039230364813, 0.00396739004003, 0.00397766902931, 0.00398224178954, \
+      0.00398489559746, 0.00398659905109, 0.00398777551688, 0.00398863618887, 0.00398931119962,\
+     0.00398984448104, 0.00399027231814, 0.00454277200564, 0.00501692809448,  0.0054198805189, \
+     0.00576302421683, 0.00606175067052, 0.00633221440352,0.00656349712714, 0.00677161234034]
+coupons = np.array([0.01, 0.01, 0.01])#coupons we want to price for
 
 #coupon = 0.05
 nIss = 125#Number of issuers 
@@ -44,10 +56,10 @@ def defaultLeg():
             else:
                 Dl = Lavg*(D-C)              
                   
-            if timeStep == 0:
-                sumPay = sumPay + (p[nbrDef, timeStep])*Dl #when timestep zero, 1y from now, p[nbrDef, timestep-1] = 0 
-            else: 
-                sumPay = sumPay + (p[nbrDef, timeStep] - p[nbrDef, timeStep-1])*Dl
+            #if timeStep == 0:
+            sumPay = sumPay + (p[nbrDef, timeStep])*Dl #when timestep zero, 1y from now, p[nbrDef, timestep-1] = 0 
+            #else: 
+            #    sumPay = sumPay + (p[nbrDef, timeStep] - p[nbrDef, timeStep-1])*Dl
         
         #discount sum of Payments
         pvDl = pvDl + sumPay/discFac[timeStep]
@@ -110,7 +122,7 @@ price = np.zeros(len(tranches))
 
 
 
-for k in tranches: 
+''' for k in tranches: 
     
     C = math.ceil(tr[k]*nIss) #nbr of losses attachment
     if C != 0: #if we want to insure 12-15, C should be 11
@@ -134,4 +146,4 @@ D = float(math.trunc(0.03*nIss)) #nbr of losses detachment
 Lavg = (1.0-recRate)*nom/(D-C)#hela nominalen ska va avksriven inom omradet C-D
     
 findp(0.43126441) #correlation for 0-3 find probability of k defaults, changes global variable 
-print 'price base corr 1-3:', defaultLeg() - premiumLeg(0.00285129716295)  #spread 3-6 for finding correlation 0-6
+print 'price base corr 1-3:', defaultLeg() - premiumLeg(0.00285129716295)  #spread 3-6 for finding correlation 0-6'''
