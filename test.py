@@ -9,6 +9,8 @@ import numpy as np
 import scipy.stats as sct
 import scipy.optimize as opt
 
+print sct.norm.cdf(sct.norm.ppf(0.02))
+
 #func = np.poly1d([1.3, 4.0, 0.6])
 #def func(y, *kPrice):
 #    print 1.3*math.pow(y[0],2) + 4.0*y[0] + 0.6*kPrice[0]

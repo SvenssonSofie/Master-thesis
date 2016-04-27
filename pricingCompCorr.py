@@ -6,10 +6,11 @@ import scipy.stats as sct
 import time
 start_time = time.time()
 
-corr = [0.95, 0.28, 0.45]
+corr = [0.95, 0.28, 0.48]
 
-tranches = [0, 1, 2] #all tranches that should be prices
+
 tr = np.array([0.0, 0.03, 0.06, 0.12])#tranches
+tranches = range(len(tr)-1) #all tranches that should be prices
 
 
 delta = [0.252777777778, 0.252777777778      , 0.252777777778 , 0.255555555556   , 0.252777777778,      \
@@ -122,7 +123,7 @@ price = np.zeros(len(tranches))
 
 
 
-''' for k in tranches: 
+for k in tranches: 
     
     C = math.ceil(tr[k]*nIss) #nbr of losses attachment
     if C != 0: #if we want to insure 12-15, C should be 11
@@ -138,7 +139,7 @@ print("--- %s seconds ---" % (time.time() - start_time))
 
 
 
-
+'''
 C = math.ceil(0.01*nIss) #nbr of losses attachment
 if C != 0: #if we want to insure 12-15, C should be 11
     C = C-1
