@@ -5,7 +5,7 @@ import time
 import scipy.optimize as opt
 start_time = time.time()
 
-corr = [0.733338844, 0.82111647, 0.90891503]
+corr = [0.38, 0.16, 0.11]
 tranches = [0, 1, 2] #all tranches that should be prices first is 3-6
 tr = np.array([0.0, 0.03, 0.06, 0.12])#tranches
 
@@ -13,12 +13,25 @@ tr = np.array([0.0, 0.03, 0.06, 0.12])#tranches
 #corr = [0.99]
 #tranches =[0]
 #tr = [0.0, 1.0]
+delta = [0.252777777778, 0.252777777778, 0.252777777778, 0.255555555556, 0.252777777778,      \
+         0.25, 0.255555555556, 0.255555555556, 0.252777777778, 0.25, \
+              0.255555555556, 0.255555555556 , 0.252777777778 , 0.25, 0.255555555556, \
+              0.255555555556 , 0.252777777778, 0.252777777778, 0.261111111111 , 0.252777777778, 0.252777777778]
 
-delta = np.array([0.252777777778, 0.252777777778, 0.252777777778, 0.255555555556, 0.252777777778, 0.25, 0.255555555556, 0.255555555556, 0.252777777778, 0.25, 0.255555555556, 0.255555555556, 0.255555555556 ])
-discFac = np.array([0.998789615268, 0.999800018888, 1.02, 1.04,  1.08, 1.12, 1.13, 1.16, 1.20, 1.24, 1.25, 1.27, 1.303])
-pi = np.array([0.0, 0.0,0.00163277007592  ,0.00383756939696   ,0.00601361347919   ,0.00816106960817  , 0.010351451799  , 0.0125369967385  ,0.014694037557   ,0.0168227400791  ,0.0189939937924    ,0.0211604524977   ,0.0233509971123 ])
+discFac = [0.998600956242      ,0.999611180239      ,  1.00047630826       , 1.00112395119       ,\
+          1.00180019558       ,  1.00252355848       , 1.00320411939       , 1.0036842191        ,\
+           1.00377352897       , 1.00368518481       , 1.00372980688       , 1.0038363132        ,\
+          1.00395370531       ,  1.0040649568        , 1.00392689128       , 1.00358551835       , \
+          1.00315265354    , 1.00262525655    , 1.0018353653        ,    1.00087710692   ,0.999799458336]
 
-coupons = np.array([0.03, 0.03, 0.03])#coupons we want to price for
+
+pi = [0.0, 0.0, 0.0039230364813, 0.00396739004003, 0.00397766902931, 0.00398224178954, \
+      0.00398489559746, 0.00398659905109, 0.00398777551688, 0.00398863618887, 0.00398931119962,\
+     0.00398984448104, 0.00399027231814, 0.00454277200564, 0.00501692809448,  0.0054198805189, \
+     0.00576302421683, 0.00606175067052, 0.00633221440352,0.00656349712714, 0.00677161234034]
+
+
+coupons = np.array([0.01, 0.01, 0.01])#coupons we want to price for
 nIss = 125#Number of issuers 
 
 #Pricing of derivatives
@@ -74,14 +87,20 @@ def premiumLeg(p, coupon):
     return pvNl    
 
 def findp(corr):
-    probTot = 0.0
-    intPnts = np.linspace(-6,6) #50 points by default between -6 and 6
     global p
+    a = -6.0
+    b = 6.0
+    deg = 50
+    x, w = np.polynomial.legendre.leggauss(deg)
+
+    # Translate x values from the interval [-1, 1] to [a, b]
+    t = 0.5*(x + 1)*(b - a) + a
     p = np.zeros((nIss+1, nTime)) 
-    for Y0 in intPnts: 
-        probTot = probTot + sct.norm.pdf(Y0)
-        p = p + np.multiply(conProb(Y0, corr), sct.norm.pdf(Y0))
-    p = np.divide(p,probTot)
+    for k in range(0,len(t)):
+        p = p + np.multiply(w[k], conProb(t[k], corr))
+    p = np.multiply(0.5*(b-a), p)
+    p = np.divide(p, p[0,0])
+    #gauss = sum(w * conProb(x, corr)) * 0.5*(b - a)
     return p
     
     
@@ -108,58 +127,13 @@ def conProb(Y0, corr):# conditional probability of k defaults given Y0
 
 
 
-
-
 def parRate(coupon, corr): 
     print coupon
     if coupon < 0: 
         return float('inf')
-    probTot = 0.0
-    intPnts = np.linspace(-6,6) #50 points by default between -6 and 6
-    p = np.zeros((nIss+1, nTime)) 
-    for Y0 in intPnts: 
-        probTot = probTot + sct.norm.pdf(Y0)
-        p = p + np.multiply(conProb(Y0, corr), sct.norm.pdf(Y0))
-    p = np.divide(p,probTot)
-    #print p 
-
-    pvDl = 0.0
-    for timeStep in range(0,nTime): #0 to 4
-        sumPay = 0.0
-        for nbrDef in range(0,nIss+1):#0-50            
-            if nbrDef <= C:
-                Dl = 0.0
-            elif nbrDef > C and nbrDef <= D: 
-                Dl = Lavg*(nbrDef-C)
-            else:
-                Dl = Lavg*(D-C)              
-                  
-            if timeStep == 0:
-                sumPay = sumPay + (p[nbrDef, timeStep])*Dl #when timestep zero, 1y from now, p[nbrDef, timestep-1] = 0 
-            else: 
-                sumPay = sumPay + (p[nbrDef, timeStep] - p[nbrDef, timeStep-1])*Dl
-        
-        pvDl = pvDl + sumPay/discFac[timeStep] #discount recieved default payments
-    print 'pvDl', pvDl
-    
-    #present value of payments to insurer
-    pvNl = 0.0
-    for timeStep in range(0,nTime):
-        sumPay = 0.0
-        for nbrDef in range(0,nIss+1):    
-            
-            if nbrDef <= C:
-                Nl = (D-C)*Lavg
-            elif nbrDef > C and nbrDef <= D: 
-                Nl = Lavg*(D-nbrDef)
-            else: 
-                Nl = 0
-            sumPay = sumPay + p[nbrDef, timeStep]*Nl
-
-        #discount sum of Payment
-        pvNl = pvNl + coupon*delta[timeStep]*sumPay/discFac[timeStep]
-    print 'pvNl',  - pvNl    
-    print 'PV', pvDl - pvNl
+    p = findp(corr)
+    pvDl = defaultLeg(p)
+    pvNl = premiumLeg(p, coupon)
     
     #Recieve default payments, pay premiums
     return abs(pvDl - pvNl) #compound, returns the difference that we want to be zero, finds optimal correlation
@@ -172,66 +146,15 @@ def correlation(corr, coupon):
     print corr
     if corr >= 1 or corr < 0: 
         return float('inf')
-    probTot = 0.0
-    intPnts = np.linspace(-6,6) #50 points by default between -6 and 6
-    p = np.zeros((nIss+1, nTime)) 
-    for Y0 in intPnts: 
-        probTot = probTot + sct.norm.pdf(Y0)
-        p = p + np.multiply(conProb(Y0, corr), sct.norm.pdf(Y0))
-    p = np.divide(p,probTot)
-    #print p 
-
-    pvDl = 0.0
-    for timeStep in range(0,nTime): #0 to 4
-        sumPay = 0.0
-        for nbrDef in range(0,nIss+1):#0-50            
-            if nbrDef <= C:
-                Dl = 0.0
-            elif nbrDef > C and nbrDef <= D: 
-                Dl = Lavg*(nbrDef-C)
-            else:
-                Dl = Lavg*(D-C)              
-                  
-            if timeStep == 0:
-                sumPay = sumPay + (p[nbrDef, timeStep])*Dl #when timestep zero, 1y from now, p[nbrDef, timestep-1] = 0 
-            else: 
-                sumPay = sumPay + (p[nbrDef, timeStep] - p[nbrDef, timeStep-1])*Dl
-        
-        pvDl = pvDl + sumPay/discFac[timeStep] #discount recieved default payments
-    print 'pvDl', pvDl
-    
-    #present value of payments to insurer
-    pvNl = 0.0
-    for timeStep in range(0,nTime):
-        sumPay = 0.0
-        for nbrDef in range(0,nIss+1):    
-            
-            if nbrDef <= C:
-                Nl = (D-C)*Lavg
-            elif nbrDef > C and nbrDef <= D: 
-                Nl = Lavg*(D-nbrDef)
-            else: 
-                Nl = 0
-            sumPay = sumPay + p[nbrDef, timeStep]*Nl
-
-        #discount sum of Payment
-        pvNl = pvNl + coupon*delta[timeStep]*sumPay/discFac[timeStep]
-    print 'pvNl',  - pvNl    
-    print 'PV', pvDl - pvNl
+    p = findp(corr)
+    pvDl = defaultLeg(p)
+    pvNl =premiumLeg(p, coupon)
     
     #Recieve default payments, pay premiums
     return abs(pvDl - pvNl) 
 
-
-
-
-
-
-
-price = np.zeros(len(tranches))
 ####################main
-
-# Price 0-3
+price = np.zeros(len(tranches))
 scaleLower = 1.0
 scaleUpper = 1.0
 for k in tranches: #k should be > 0 since the first tranche is the same as for compound correlation k = 1 corresponds to tranche 3-6

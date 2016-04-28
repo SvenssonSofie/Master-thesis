@@ -6,7 +6,7 @@ import scipy.stats as sct
 import time
 start_time = time.time()
 
-corr = [0.95, 0.28, 0.48]
+corr = [0.38, 0.1658, 0.2086]
 
 
 tr = np.array([0.0, 0.03, 0.06, 0.12])#tranches
@@ -57,14 +57,13 @@ def defaultLeg():
             else:
                 Dl = Lavg*(D-C)              
                   
-            #if timeStep == 0:
-            sumPay = sumPay + (p[nbrDef, timeStep])*Dl #when timestep zero, 1y from now, p[nbrDef, timestep-1] = 0 
-            #else: 
-            #    sumPay = sumPay + (p[nbrDef, timeStep] - p[nbrDef, timeStep-1])*Dl
+            if timeStep == 0:
+                sumPay = sumPay + (p[nbrDef, timeStep])*Dl #when timestep zero, 1y from now, p[nbrDef, timestep-1] = 0 
+            else: 
+                sumPay = sumPay + (p[nbrDef, timeStep] - p[nbrDef, timeStep-1])*Dl
         
         #discount sum of Payments
         pvDl = pvDl + sumPay/discFac[timeStep]
-        #print pvDl
     return pvDl
 
 def premiumLeg(coupon): 
@@ -87,14 +86,21 @@ def premiumLeg(coupon):
     return pvNl    
 
 def findp(corr):
-    probTot = 0.0
-    intPnts = np.linspace(-6,6) #50 points by default between -6 and 6
+
     global p
+    a = -6.0
+    b = 6.0
+    deg = 50
+    x, w = np.polynomial.legendre.leggauss(deg)
+
+    # Translate x values from the interval [-1, 1] to [a, b]
+    t = 0.5*(x + 1)*(b - a) + a
     p = np.zeros((nIss+1, nTime)) 
-    for Y0 in intPnts: 
-        probTot = probTot + sct.norm.pdf(Y0)
-        p = p + np.multiply(conProb(Y0, corr), sct.norm.pdf(Y0))
-    p = np.divide(p,probTot)
+    for k in range(0,len(t)):
+        p = p + np.multiply(w[k], conProb(t[k], corr))
+    p = np.multiply(0.5*(b-a), p)
+    p = np.divide(p, p[0,0])
+    #gauss = sum(w * conProb(x, corr)) * 0.5*(b - a)
     
     
 def conProb(Y0, corr):# conditional probability of k defaults given Y0 
