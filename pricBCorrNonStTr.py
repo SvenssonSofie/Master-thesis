@@ -8,39 +8,59 @@ import sys
 warnings.simplefilter(action = "ignore", category = RuntimeWarning)
 start_time = time.time()
 
-corr = [0.733338844, 0.82111647, 0.90891503]
-
-tranches = [1, 2, 3] #all tranches that should be prices first is 3-6
+corr = [0.65638817 , 0.73785926 , 0.82030198]# scaling by C, D all right? latest version so far, delta = 0 2 first
+corr = [0.65638817 , 0.73488854 , 0.81171706]# new method, filip
+#corr = [0.67596046 , 0.75850389 , 0.83795692]#delta not zero first
+nIss = 125
 tr = np.array([0.0, 0.03, 0.06, 0.12])#tranches
 
+for t in range(0,len(tr)): 
+    tr[t] = float(math.trunc(tr[t]*nIss))
+print tr
 
-delta = np.array([0.252777777778, 0.252777777778, 0.252777777778, 0.255555555556, 0.252777777778, 0.25, 0.255555555556, 0.255555555556, 0.252777777778, 0.25, 0.255555555556, 0.255555555556, 0.255555555556 ])
-discFac = np.array([0.998789615268, 0.999800018888, 1.02, 1.04,  1.08, 1.12, 1.13, 1.16, 1.20, 1.24, 1.25, 1.27, 1.303])
-pi = np.array([0.0, 0.0,0.00163277007592  ,0.00383756939696   ,0.00601361347919   ,0.00816106960817  , 0.010351451799  , 0.0125369967385  ,0.014694037557   ,0.0168227400791  ,0.0189939937924    ,0.0211604524977   ,0.0233509971123 ])
+delta = [0.252777777778, 0.255555555556, 0.252777777778,      \
+         0.25, 0.255555555556, 0.255555555556, 0.252777777778, 0.25, \
+              0.255555555556, 0.255555555556 , 0.252777777778 , 0.25, 0.255555555556, \
+              0.255555555556 , 0.252777777778, 0.252777777778, 0.261111111111 , 0.252777777778, 0.252777777778]
 
+discFac = [1.00047630826       , 1.00112395119       ,\
+          1.00180019558       ,  1.00252355848       , 1.00320411939       , 1.0036842191        ,\
+           1.00377352897       , 1.00368518481       , 1.00372980688       , 1.0038363132        ,\
+          1.00395370531       ,  1.0040649568        , 1.00392689128       , 1.00358551835       , \
+          1.00315265354    , 1.00262525655    , 1.0018353653        ,    1.00087710692   ,0.999799458336]
+
+
+spread = [0.0039230364813, 0.00396739004003, 0.00397766902931, 0.00398224178954, \
+      0.00398489559746, 0.00398659905109, 0.00398777551688, 0.00398863618887, 0.00398931119962,\
+     0.00398984448104, 0.00399027231814, 0.00454277200564, 0.00501692809448,  0.0054198805189, \
+     0.00576302421683, 0.00606175067052, 0.00633221440352,0.00656349712714, 0.00677161234034]
+
+sumDelta = np.cumsum(delta)
+pi = np.zeros(len(spread))
+for s in range(0,len(spread)):
+    pi[s] = 1 - math.exp(-spread[s]*sumDelta[s])
 coupon = 0.01#coupon we want to price for
-
-#coupon = 0.05
-nIss = 125#Number of issuers 
 
 #Pricing of derivatives
 recRate = 0.0
 nTime = len(delta)#nbr of time points
 nom = 1000000.0
 #Set C and D to attachment and detachment respectively
-c = 0.025
-d = 0.03
+c = 0.00
+d = 0.1
 C = math.ceil(c*nIss) #nbr of losses attachment
 if C != 0: #if we want to insure 12-15, C should be 11
     C = C-1
 D = float(math.trunc(d*nIss)) #nbr of losses detachment
+c = C
+d = D
 try: 
     Lavg = (1.0-recRate)*nom/(D-C)#hela nominalen ska va avksriven inom omradet C-D
 except ZeroDivisionError: 
     print 'The interval contains no defaults, use other attachment/detachment'
     sys.exit()
     
-def defaultLeg():
+def defaultLeg(p):
     pvDl = 0.0
     for timeStep in range(0,nTime): #0 to 4
         sumPay = 0.0
@@ -62,7 +82,7 @@ def defaultLeg():
         #print pvDl
     return pvDl
 
-def premiumLeg(coupon): 
+def premiumLeg(coupon, p): 
     if type(coupon) is list:
         coupon = float(coupon[0])
     pvNl = 0.0
@@ -82,14 +102,17 @@ def premiumLeg(coupon):
     return pvNl    
 
 def findp(corr):
-    probTot = 0.0
-    intPnts = np.linspace(-6,6) #50 points by default between -6 and 6
-    global p
-    p = np.zeros((nIss+1, nTime)) 
-    for Y0 in intPnts: 
-        probTot = probTot + sct.norm.pdf(Y0)
-        p = p + np.multiply(conProb(Y0, corr), sct.norm.pdf(Y0))
-    p = np.divide(p,probTot)
+    a = -6.0
+    b = 6.0
+    deg = 50
+    x, w = np.polynomial.legendre.leggauss(deg)
+    w = w*(b-a)*0.5 #weights
+    t = 0.5*x*(b - a) #sample points
+     
+    p = np.zeros((nIss+1, nTime))
+    for k in range(0,len(t)):
+        p = p + np.multiply(w[k]*sct.norm.pdf(t[k]), conProb(t[k], corr))   
+    return p 
     
     
 def conProb(Y0, corr):# conditional probability of k defaults given Y0 
@@ -121,9 +144,9 @@ def cons1(corr):
     return 1 - abs(corr)
 
 def optSpread(spread, corr, kPrice):
-    findp(corr)
-    pvDl = defaultLeg()
-    pvPl = premiumLeg(spread)    
+    p = findp(corr)
+    pvDl = defaultLeg(p)
+    pvPl = premiumLeg(spread, p)    
     return abs(pvDl - pvPl - kPrice)
 
 
@@ -141,12 +164,14 @@ elif indLowAtt == 0: #meaning first tranche
 elif indLowAtt == indUppAtt: 
     bCorrAtt = corr[indUppAtt - 1]
 else:
+    #bCorrAtt = (tr[indUppAtt] - c)/(tr[indUppAtt]-tr[indLowAtt]) * corr[indLowAtt-1] + (c - tr[indLowAtt])/(tr[indUppAtt]-tr[indLowAtt]) * corr[indUppAtt-1] #combination of 0-6 and 0-9
     bCorrAtt = (tr[indUppAtt] - c)/(tr[indUppAtt]-tr[indLowAtt]) * corr[indLowAtt-1] + (c - tr[indLowAtt])/(tr[indUppAtt]-tr[indLowAtt]) * corr[indUppAtt-1] #combination of 0-6 and 0-9
 
 
 indUppDet = min(np.where(tr >= d)[0]) #index of the first tranche detachment greater than D
 indLowDet = max(np.where(tr <= d)[0])
 print 'd', d, 'induppdet', indUppDet, 'indlowdet', indLowDet, 'corr: ', corr
+print 'c', c, 'induppattt', indUppAtt, 'indlowatt', indLowAtt, 'corr: ', bCorrAtt
 
 if indLowDet == 0: 
     bCorrDet = corr[0]
@@ -156,12 +181,56 @@ else:
     bCorrDet = (tr[indUppDet] - d)/(tr[indUppDet]-tr[indLowDet]) * corr[indLowDet-1] + (d - tr[indLowDet])/(tr[indUppDet]-tr[indLowDet]) * corr[indUppDet-1] #combination of 0-6 and 0-9
 print bCorrAtt, bCorrDet
 
-findp(bCorrAtt)
-pvDlAtt = defaultLeg()
-priceAtt = - premiumLeg(coupon) + pvDlAtt#0-5
-findp(bCorrDet)
-pvDlDet = defaultLeg()
-priceDet = - premiumLeg(coupon) + pvDlDet#0-8
+#nu har vi korrelationerna for attachment och detachment
+# C = 4, D = 7 
+
+scaleUpper = D/(D-C)
+scaleLower = C/(D-C)
+
+C = 0.0
+Lavg = (1.0-recRate)*nom/(D-C)#hela nominalen ska va avksriven inom omradet C-D
+p = findp(bCorrDet)
+priceUpper = defaultLeg(p) - premiumLeg(coupon,p)#*scaleUpper
+#print 'corr[0]', corr[k], 'price upper', priceUpper, 'C', C, 'D', D, 'lavg', Lavg
+
+if c != 0: 
+    #lower limit
+    D = c #nbr of losses detachment
+    Lavg = (1.0-recRate)*nom/(D-C)#hela nominalen ska va avksriven inom omradet C-D
+    p = findp(bCorrAtt) 
+    priceLower = defaultLeg(p) - premiumLeg(coupon,p)
+    print scaleUpper, scaleLower
+else: 
+    priceLower = 0
+print priceLower, priceUpper
+price = (scaleUpper*priceUpper - scaleLower*priceLower) #spread 3-6 for finding correlation 0-6
+
+print 'price', price
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
+
+
+
+p = findp(bCorrAtt)
+pvDlAtt = defaultLeg(p)
+priceAtt = - premiumLeg(coupon,p) + pvDlAtt#0-5
+p = findp(bCorrDet)
+pvDlDet = defaultLeg(p)
+priceDet = - premiumLeg(coupon, p) + pvDlDet#0-8
 #priceAttDet = (d - c)/d * priceDet - (d-c)/c * priceAtt #5-8
 priceAttDet = d/(d-c) * priceDet - c/(d-c) * priceAtt #5-8
 print 'price: ' , priceAttDet, 'pricedet: ', priceDet, 'priceAtt: ', priceAtt
@@ -169,7 +238,7 @@ print 'price: ' , priceAttDet, 'pricedet: ', priceDet, 'priceAtt: ', priceAtt
 ### Assume spreads are known 0-3 3-6 6-9 9-12, spreads for 0-3 0-6 0-9 0-12 are known from 
 ### Interpolate spreads
 
-'''
+
 spreadAttUpp = 0.04266875#impliedSpread(0, corr[indUppAtt -1]) # 0-6
 
 spreadDetUpp = 0.2509063#impliedSpread(0, corr[indUppDet -1])#0-12
@@ -204,8 +273,9 @@ DVattDet = d/(d-c) * DVdet - c/(d-c) * DVatt
 
 spreadAttDet = pvDlAttDet/DVattDet
 
+'''
 
-
-
-print 'Spread for', c, 'to', d, ': ', spreadAttDet*10000.0, 'bps' '''
+'''
+print 'Spread for', c, 'to', d, ': ', spreadAttDet*10000.0, 'bps'
 print("--- %s seconds ---" % (time.time() - start_time))
+'''
